@@ -1,0 +1,112 @@
+#!/bin/bash
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git commit" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message if
+# it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-commit".
+
+ASSETS_DIR="$(git config --get unity3d.assets-dir || echo "Assets")"
+
+if [ ! -d "$ASSETS_DIR" ]; then
+	ASSETS_DIR="."
+fi
+
+if git rev-parse --verify HEAD >/dev/null 2>&1
+then
+	against=HEAD
+else
+	# Initial commit: diff against an empty tree object
+	against=04a52ddc5edd3d750b5ef328597afe4d2ac7e587
+fi
+
+# Redirect output to stderr.
+exec 1>&2
+
+EMPTY_FOLDERS=$(find "$ASSETS_DIR" -depth -type d -empty)
+
+if [ ! -z "$EMPTY_FOLDERS" ]
+then
+	echo "Error: Empty folders."
+	echo "$EMPTY_FOLDERS"
+	exit 1
+fi
+
+git diff --cached --name-only --diff-filter=A -z $against -- "$ASSETS_DIR" | while read -d $'\0' f; do
+	ext="${f##*.}"
+	base="${f%.*}"
+	filename="${f##*/}"
+
+	if [ "$ext" = "meta" ]; then
+		if [ $(git ls-files --cached -- "$base" | wc -l) = 0 ]; then
+			cat <<EOF
+Error: Redudant meta file.
+Meta file \`$f' is added, but \`$base' is not in the git index.
+Please add \`$base' to git as well.
+EOF
+			exit 1
+		fi
+	else
+		p="$f"
+		while [ "$p" != "$ASSETS_DIR" ]; do
+			if [ $(git ls-files --cached -- "$p.meta" | wc -l) = 0 ] && [ ${filename: 0: 1} != "." ] && [ ${filename: -1} != "~" ]; then
+				cat <<EOF
+Error: Missing meta file.
+Asset \`$f' is added, but \`$p.meta' is not in the git index.
+Please add \`$p.meta' to git as well.
+EOF
+				exit 1
+			fi
+			if [[ $p == *"/"* ]]; then
+				p="${p%/*}"
+			else
+				p="."
+			fi
+		done
+	fi
+done
+
+ret="$?"
+if [ "$ret" != 0 ]; then
+	exit "$ret"
+fi
+
+git diff --cached --name-only --diff-filter=D -z $against -- "$ASSETS_DIR" | while read -d $'\0' f; do
+	ext="${f##*.}"
+	base="${f%.*}"
+
+	if [ "$ext" = "meta" ]; then
+		if [ $(git ls-files --cached -- "$base" | wc -l) != 0 ]; then
+			cat <<EOF
+Error: Redudant meta file.
+Meta file \`$f' is removed, but \`$base' is still in the git index.
+Please remove \`$base' from git as well.
+EOF
+			exit 1
+		fi
+	else
+		p="$f"
+		while [ "$p" != "$ASSETS_DIR" ]; do
+			if [ $(git ls-files --cached -- "$p" | wc -l) = 0 ] && [ $(git ls-files --cached -- "$p.meta" | wc -l) != 0 ]; then
+				cat <<EOF
+Error: Missing meta file.
+Asset \`$f' is removed, but \`$p.meta' is still in the git index.
+Please remove \`$p.meta' from git as well.
+EOF
+				exit 1
+			fi
+			if [[ $p == *"/"* ]]; then
+				p="${p%/*}"
+			else
+				p="."
+			fi
+		done
+	fi
+done
+
+ret="$?"
+if [ "$ret" != 0 ]; then
+	exit "$ret"
+fi
+
