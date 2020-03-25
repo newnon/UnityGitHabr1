@@ -1,22 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEngine;
 
-namespace EditorScripts.git_hooks
+namespace GitIntegration
 {
     /// <summary>
     /// Cleans all the empty folders
     /// </summary>
-    public class GitDirCleanerEditor
+    public class EmptyFolderCleaner
     {
         /// <summary>
         /// Cleans empty folders and corresponding .meta files in the Assets folder
         /// </summary>
-        [MenuItem("Tools/Git Helper/Clean Empty Folders")]
+        [MenuItem("Tools/Git/Clean Empty Folders")]
         public static void CleanEmptyFolders()
         {
             var directoryInfo = new DirectoryInfo(Application.dataPath).Parent;

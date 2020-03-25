@@ -4,6 +4,11 @@ namespace GitIntegration
 {
     public class Utils
     {
+        public class ExitCodeException : Exception
+        {
+            public ExitCodeException(string message) : base(message) {}
+        }
+
         public static string ExecuteGitWithParams(string param)
         {
             var processInfo = new System.Diagnostics.ProcessStartInfo("git");
@@ -22,7 +27,7 @@ namespace GitIntegration
             process.WaitForExit();
 
             if (process.ExitCode != 0)
-                throw new Exception(process.StandardError.ReadLine());
+                throw new ExitCodeException("gir error: " + process.StandardError.ReadLine());
 
             return process.StandardOutput.ReadLine();
         }

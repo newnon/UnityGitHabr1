@@ -1,5 +1,4 @@
-﻿#if UNITY_EDITOR
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 using System;
 
@@ -26,7 +25,7 @@ namespace GitIntegration
             }
             catch (Exception e)
             {
-                Debug.Log($"Fail to register UnityYAMLMerge with error: {e}");
+                Debug.LogError($"Fail to register UnityYAMLMerge with error: {e}");
             }
         }
 
@@ -39,4 +38,3 @@ namespace GitIntegration
         }
     }
 }
-#endif
