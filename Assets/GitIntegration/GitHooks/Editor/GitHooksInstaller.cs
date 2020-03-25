@@ -11,7 +11,7 @@ namespace GitIntegration
     {
         const string hooksFolder = "hooks~";
         const string GitHooksInstallerEditorPrefsKey = "git_hooks_installed";
-        const int version = 5;
+        const int version = 1;
 
         private static string GetThisFilePath([CallerFilePath] string path = null)
         {
@@ -95,7 +95,7 @@ namespace GitIntegration
         static GitHooksInstaller()
         {
             int instaledVersion = EditorPrefs.GetInt(GitHooksInstallerEditorPrefsKey);
-            if (instaledVersion < version)
+            if (instaledVersion != version)
             {
                 InstallHooks();
             }

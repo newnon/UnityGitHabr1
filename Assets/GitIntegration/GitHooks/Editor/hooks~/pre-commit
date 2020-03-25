@@ -7,6 +7,19 @@
 #
 # To enable this hook, rename this file to "pre-commit".
 
+skip_by_unity () {
+	path=$1
+	while  [ $path != "/" -a $path != "." ]
+	do
+		filename="$(basename $path)"
+		path="$(dirname $path)"
+		if [ ${filename: 0: 1} == "." ] || [ ${filename: -1} == "~" ]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
 ASSETS_DIR="$(git config --get unity3d.assets-dir || echo "Assets")"
 
 if [ ! -d "$ASSETS_DIR" ]; then
@@ -36,7 +49,6 @@ fi
 git diff --cached --name-only --diff-filter=A -z $against -- "$ASSETS_DIR" | while read -d $'\0' f; do
 	ext="${f##*.}"
 	base="${f%.*}"
-	filename="${f##*/}"
 
 	if [ "$ext" = "meta" ]; then
 		if [ $(git ls-files --cached -- "$base" | wc -l) = 0 ]; then
@@ -50,7 +62,7 @@ EOF
 	else
 		p="$f"
 		while [ "$p" != "$ASSETS_DIR" ]; do
-			if [ $(git ls-files --cached -- "$p.meta" | wc -l) = 0 ] && [ ${filename: 0: 1} != "." ] && [ ${filename: -1} != "~" ]; then
+			if [ $(git ls-files --cached -- "$p.meta" | wc -l) = 0 ] && ! skip_by_unity $f; then
 				cat <<EOF
 Error: Missing meta file.
 Asset \`$f' is added, but \`$p.meta' is not in the git index.
@@ -88,7 +100,7 @@ EOF
 	else
 		p="$f"
 		while [ "$p" != "$ASSETS_DIR" ]; do
-			if [ $(git ls-files --cached -- "$p" | wc -l) = 0 ] && [ $(git ls-files --cached -- "$p.meta" | wc -l) != 0 ]; then
+			if [ $(git ls-files --cached -- "$p" | wc -l) = 0 ] && [ $(git ls-files --cached -- "$p.meta" | wc -l) != 0 ] && ! skip_by_unity $f; then
 				cat <<EOF
 Error: Missing meta file.
 Asset \`$f' is removed, but \`$p.meta' is still in the git index.
