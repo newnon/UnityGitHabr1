@@ -3,20 +3,19 @@ using UnityEditor;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
+using System;
 
 namespace GitIntegration
 {
     [InitializeOnLoad]
     public class GitHooksInstaller
     {
-        const string hooksFolder = "hooks~";
-        const string GitHooksInstallerEditorPrefsKey = "git_hooks_installed";
-        const int version = 1;
+        const string HooksFolder = "hooks~";
+        const int Version = 1;
 
-        private static string GetThisFilePath([CallerFilePath] string path = null)
-        {
-            return path;
-        }
+        private static string GetThisFilePath([CallerFilePath] string path = null) => path;
+
+        private static string ResourcesPath = MakeResourcesPath();
 
         static bool IsParentOrSame(string dir1, string dir2)
         {
@@ -39,66 +38,60 @@ namespace GitIntegration
         public static void InstallHooks()
         {
             var filePath = GetThisFilePath();
-            var hooksPath = Path.Combine(Path.GetDirectoryName(filePath), hooksFolder);
+            var hooksPath = Path.Combine(Path.GetDirectoryName(filePath), HooksFolder);
 
             var hooksDirectory = new DirectoryInfo(hooksPath);
             var hookFiles = hooksDirectory.GetFiles();
-
             var projectPath = new DirectoryInfo(Application.dataPath).Parent;
-
-            if (projectPath == null)
-            {
-                Debug.LogError(".git folder cannot be found! Git Hooks cannot be auto applied");
-                return;
-            }
 
             var assetsPath = Path.Combine(projectPath.FullName, "Assets");
 
-            var gitDir = projectPath.GetDirectories(".git", SearchOption.TopDirectoryOnly);
-            if (gitDir.Length != 0)
+            var gitPath = Utils.FindGitFolder();
+            List<string> submodules = new List<string>();
+
+            try
             {
-                List<string> submodules = new List<string>();
-
-                try
+                var modulesStrings = File.ReadAllLines(Path.Combine(new DirectoryInfo(gitPath).Parent.FullName, ".gitmodules"));
+                for (int i = 0; i < modulesStrings.Length; i += 3)
                 {
-                    var modulesStrings = File.ReadAllLines(Path.Combine(projectPath.FullName, ".gitmodules"));
-                    for (int i = 0; i < modulesStrings.Length; i += 3)
-                    {
-                        var internalPath = modulesStrings[i].Substring(10, modulesStrings[i].Length - 11).Trim();
-                        internalPath = internalPath.Substring(1, internalPath.Length - 2);
-                        var externalPath = modulesStrings[i + 1].Split('=')[1].Trim();
-                        if (IsParentOrSame(assetsPath, externalPath))
-                            submodules.Add(internalPath);
-                    }
+                    var internalPath = modulesStrings[i].Substring(10, modulesStrings[i].Length - 11).Trim();
+                    internalPath = internalPath.Substring(1, internalPath.Length - 2);
+                    var externalPath = modulesStrings[i + 1].Split('=')[1].Trim();
+                    if (IsParentOrSame(assetsPath, externalPath))
+                        submodules.Add(internalPath);
                 }
-                catch (System.Exception)
-                {
-                }
-
-                foreach (var file in hookFiles)
-                {
-                    if (!Path.GetExtension(file.FullName).Equals(".meta"))
-                    {
-                        File.Copy(file.FullName, Path.Combine(gitDir[0].FullName, "hooks", file.Name), true);
-                        foreach (var submodule in submodules)
-                        {
-                            File.Copy(file.FullName, Path.Combine(gitDir[0].FullName, "modules", submodule, "hooks", file.Name), true);
-                        }
-                    }
-                }
-                EditorPrefs.SetInt(GitHooksInstallerEditorPrefsKey, version);
-                Debug.Log("Git hooks installed");
             }
+            catch (System.Exception)
+            {
+            }
+
+            foreach (var file in hookFiles)
+            {
+                if (!Path.GetExtension(file.FullName).Equals(".meta"))
+                {
+                    File.Copy(file.FullName, Path.Combine(gitPath, "hooks", file.Name), true);
+                    foreach (var submodule in submodules)
+                    {
+                        File.Copy(file.FullName, Path.Combine(gitPath, "modules", submodule, "hooks", file.Name), true);
+                    }
+                }
+            }
+            Utils.WriteInstalledVersion(ResourcesPath, Version);
+            Debug.Log("Git hooks installed");
         }
 
         //Unity calls the static constructor when the engine opens
         static GitHooksInstaller()
         {
-            int instaledVersion = EditorPrefs.GetInt(GitHooksInstallerEditorPrefsKey);
-            if (instaledVersion != version)
-            {
+            if (Utils.GetInstalledVersion(ResourcesPath) != Version)
                 InstallHooks();
-            }
+        }
+
+        private static string MakeResourcesPath()
+        {
+            var ret = Path.Combine(Directory.GetParent(GetThisFilePath()).FullName, "Resources", "GitHooks.asset");
+            var result = (new Uri(Application.dataPath)).MakeRelativeUri(new Uri(ret));
+            return result.ToString();
         }
     }
 }
