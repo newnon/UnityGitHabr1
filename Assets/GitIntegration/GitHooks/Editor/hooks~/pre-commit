@@ -37,21 +37,12 @@ fi
 # Redirect output to stderr.
 exec 1>&2
 
-EMPTY_FOLDERS=$(find "$ASSETS_DIR" -depth -type d -empty)
-
-if [ ! -z "$EMPTY_FOLDERS" ]
-then
-	echo "Error: Empty folders."
-	echo "$EMPTY_FOLDERS"
-	exit 1
-fi
-
 git diff --cached --name-only --diff-filter=A -z $against -- "$ASSETS_DIR" | while read -d $'\0' f; do
 	ext="${f##*.}"
 	base="${f%.*}"
 
 	if [ "$ext" = "meta" ]; then
-		if [ $(git ls-files --cached -- "$base" | wc -l) = 0 ]; then
+		if [ $(git ls-files --cached -- "$base" | wc -l) = 0 ]  && [ -d $base ] && [ ! -z "$(ls -A $base)" ]; then
 			cat <<EOF
 Error: Redudant meta file.
 Meta file \`$f' is added, but \`$base' is not in the git index.

@@ -11,7 +11,7 @@ namespace GitIntegration
     public class GitHooksInstaller
     {
         const string HooksFolder = "hooks~";
-        const int Version = 1;
+        const int Version = 2;
 
         private static string GetThisFilePath([CallerFilePath] string path = null) => path;
 
